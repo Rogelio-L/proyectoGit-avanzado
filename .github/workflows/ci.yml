@@ -13,6 +13,9 @@ on:
       - develop
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   update-readme:
     name: Actualizar README
@@ -20,11 +23,25 @@ jobs:
     steps:
       - name: Descargar el repositorio
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
 
-      - name: Añadir la línea de la rama
+      - name: Añadir y guardar la línea de la rama
+        env:
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref || github.ref_name }}
         run: |
-          echo "Añadida feature: ${{ github.head_ref || github.ref_name }}" >> README.md
-          cat README.md
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            LINE="Añadida feature: $BRANCH_NAME"
+
+            if ! grep -qxF "$LINE" README.md; then
+              echo "$LINE" >> README.md
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add README.md
+              git commit -m "Actualizar README con la feature"
+              git push origin "HEAD:$BRANCH_NAME"
+            fi
+          fi
 
   validate-dev:
     name: Validar DEV_TOKEN en el runner
