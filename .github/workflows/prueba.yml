@@ -1,0 +1,18 @@
+﻿name: Comparar token DEV
+on:
+  push:
+jobs:
+  comparar:
+    runs-on: self-hosted
+    steps:
+      - name: Comparar DEV_TOKEN con la variable local
+        shell: powershell
+        env:
+          DEV_TOKEN: ${{ secrets.DEV_TOKEN }}
+        run: |
+          if ($env:DEV_TOKEN -ceq $env:LOCAL_DEV_TOKEN) {
+            Write-Output "CORRECTO: los tokens coinciden."
+          } else {
+            Write-Output "ERROR: los tokens no coinciden."
+            exit 1
+          }
