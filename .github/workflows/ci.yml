@@ -1,0 +1,44 @@
+name: CI develop
+
+on:
+  pull_request:
+    branches:
+      - develop
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  update-readme:
+    name: Actualizar README
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Añadir la línea de la rama
+        run: |
+          echo "Añadida feature: ${{ github.head_ref || github.ref_name }}" >> README.md
+          cat README.md
+
+  validate-dev:
+    name: Validar DEV_TOKEN en el runner
+    needs: update-readme
+    runs-on: self-hosted
+    steps:
+      - name: Comparar el secreto con la variable local
+        shell: powershell -ExecutionPolicy Bypass -File {0}
+        env:
+          DEV_TOKEN: ${{ secrets.DEV_TOKEN }}
+        run: |
+          if ($env:DEV_TOKEN -ceq $env:LOCAL_DEV_TOKEN) {
+            Write-Output "CORRECTO: los tokens coinciden."
+          } else {
+            Write-Output "ERROR: los tokens no coinciden."
+            exit 1
+          }
