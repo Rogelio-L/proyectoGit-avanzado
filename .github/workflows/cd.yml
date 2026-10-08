@@ -1,0 +1,51 @@
+name: CD main
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  update-version:
+    name: Actualizar versión del README
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Incrementar AppVersion
+        run: |
+          CURRENT_VERSION=$(grep -oE 'AppVersion-[0-9]+' README.md | head -n 1 | cut -d- -f2)
+          if [ -z "$CURRENT_VERSION" ]; then
+            echo "ERROR: no se encontró AppVersion en README.md"
+            exit 1
+          fi
+          NEXT_VERSION=$((CURRENT_VERSION + 1))
+          sed -i "s/AppVersion-${CURRENT_VERSION}/AppVersion-${NEXT_VERSION}/" README.md
+          echo "Fecha de actualización: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> README.md
+          cat README.md
+
+  validate-prod:
+    name: Validar PROD_TOKEN en el runner
+    needs: update-version
+    runs-on: self-hosted
+    steps:
+      - name: Comparar el secreto con la variable local
+        shell: powershell -ExecutionPolicy Bypass -File {0}
+        env:
+          PROD_TOKEN: ${{ secrets.PROD_TOKEN }}
+        run: |
+          if ($env:PROD_TOKEN -ceq $env:LOCAL_PROD_TOKEN) {
+            Write-Output "CORRECTO: los tokens coinciden."
+          } else {
+            Write-Output "ERROR: los tokens no coinciden."
+            exit 1
+          }
